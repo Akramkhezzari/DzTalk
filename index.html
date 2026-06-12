@@ -2,93 +2,508 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>مراسلات حية - لمس ورسم</title>
-    <!-- Firebase SDKs -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
+    <title>مراسلة فورية</title>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        body { background: #f4f9fc; height: 100vh; display: flex; flex-direction: column; }
-        .app-container { flex: 1; display: flex; flex-direction: column; background: white; border-radius: 32px 32px 0 0; overflow: hidden; }
-        .app-header { padding: 20px 20px 10px; background: white; border-bottom: 1px solid #e2edf2; }
-        .app-header h1 { font-size: 1.6rem; color: #1e6f5c; display: flex; align-items: center; gap: 8px; }
-        .user-greeting { font-size: 0.85rem; color: #5f7f8c; margin-top: 5px; }
-        .horizontal-chats { flex: 1; padding: 16px 0 8px 0; overflow-x: auto; overflow-y: hidden; white-space: nowrap; scroll-behavior: smooth; direction: ltr; }
-        .chats-wrapper { display: inline-flex; gap: 16px; padding: 0 20px; direction: rtl; }
-        .chat-card { background: #ffffff; width: 240px; border-radius: 32px; box-shadow: 0 8px 20px rgba(0,0,0,0.08); border: 1px solid #e0eff4; cursor: pointer; display: inline-flex; flex-direction: column; padding: 16px; text-align: center; }
-        .avatar { width: 70px; height: 70px; background: #d7f0ea; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; font-size: 2rem; color: #1e6f5c; }
-        .contact-name { font-weight: 800; font-size: 1.2rem; margin-bottom: 8px; color: #154e5c; }
-        .last-message { font-size: 0.8rem; color: #5f7c8a; overflow: hidden; text-overflow: ellipsis; white-space: normal; min-height: 38px; }
-        .bottom-icons { background: white; border-top: 1px solid #e2edf2; display: flex; justify-content: space-around; padding: 12px 20px 20px; gap: 20px; }
-        .icon-btn { background: #f0f6f9; border: none; border-radius: 60px; padding: 10px 20px; font-size: 1.3rem; color: #1e6f5c; cursor: pointer; display: flex; align-items: center; gap: 8px; flex: 1; justify-content: center; }
-        .icon-btn i { font-size: 1.3rem; }
-        .icon-btn span { font-size: 0.8rem; font-weight: 500; }
-        .chat-screen { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: white; z-index: 1000; display: flex; flex-direction: column; padding: 16px; }
-        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 2000; }
-        .modal-content { background: white; border-radius: 32px; padding: 24px; width: 85%; max-width: 320px; text-align: center; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            width: 100%;
+            height: 100vh;
+            overflow: hidden;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+        }
+
+        .app-container {
+            width: 100%;
+            height: 100vh;
+            background: white;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* شاشة التحميل */
+        .loading-screen {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            z-index: 100;
+            transition: opacity 0.5s ease;
+        }
+
+        .loading-screen.hide {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .loader {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        .loading-screen i { font-size: 60px; color: white; animation: bounce 1s infinite; }
+        
+        @keyframes bounce { 0%,100%{ transform: translateY(0); } 50%{ transform: translateY(-15px); } }
+        
+        .loading-screen p { color: white; font-size: 1rem; font-weight: 500; }
+        
+        /* رأس التطبيق - بدون اسم التطبيق */
+        .app-header {
+            padding: 16px 20px 8px;
+            background: white;
+            border-bottom: 1px solid #f0f0f0;
+            flex-shrink: 0;
+        }
+        
+        .user-card {
+            background: #f8fafc;
+            border-radius: 28px;
+            padding: 10px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .user-card:active {
+            background: #f1f5f9;
+        }
+        
+        .user-avatar {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            color: white;
+        }
+        
+        /* شريط البحث */
+        .search-box {
+            padding: 12px 20px;
+            background: white;
+            display: flex;
+            gap: 10px;
+            flex-shrink: 0;
+        }
+        
+        .search-box input {
+            flex: 1;
+            padding: 12px 16px;
+            border-radius: 40px;
+            border: 1px solid #e2e8f0;
+            background: #f8fafc;
+            outline: none;
+            font-size: 0.9rem;
+        }
+        
+        .search-box button {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border: none;
+            border-radius: 40px;
+            padding: 0 20px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        
+        .search-results {
+            margin: 0 20px 12px;
+            background: white;
+            border-radius: 24px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+            max-height: 200px;
+            overflow-y: auto;
+            display: none;
+            flex-shrink: 0;
+        }
+        
+        .result-item {
+            padding: 12px 16px;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .result-item button {
+            background: #10b981;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 30px;
+            color: white;
+            cursor: pointer;
+        }
+        
+        /* منطقة المحادثات */
+        .chats-area {
+            flex: 1;
+            overflow-x: auto;
+            overflow-y: hidden;
+            white-space: nowrap;
+            padding: 16px 0;
+            direction: ltr;
+            min-height: 0;
+        }
+        
+        .chats-wrapper {
+            display: inline-flex;
+            gap: 16px;
+            padding: 0 20px;
+            direction: rtl;
+            height: 100%;
+            align-items: flex-start;
+        }
+        
+        .chat-card {
+            width: 210px;
+            background: white;
+            border-radius: 32px;
+            padding: 16px;
+            text-align: center;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            border: 1px solid #f0f0f0;
+            transition: transform 0.1s;
+            display: inline-block;
+        }
+        
+        .chat-card:active { transform: scale(0.97); }
+        
+        .chat-avatar {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 10px;
+            font-size: 1.8rem;
+            color: white;
+        }
+        
+        .chat-name { font-weight: 700; margin-bottom: 6px; }
+        .chat-last { font-size: 0.7rem; color: #94a3b8; white-space: normal; word-break: break-word; }
+        
+        /* الأزرار السفلية */
+        .bottom-nav {
+            background: white;
+            border-top: 1px solid #f0f0f0;
+            display: flex;
+            padding: 12px 20px 20px;
+            gap: 12px;
+            flex-shrink: 0;
+        }
+        
+        .nav-btn {
+            flex: 1;
+            background: #f1f5f9;
+            border: none;
+            border-radius: 40px;
+            padding: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.1s;
+        }
+        
+        .nav-btn:active {
+            transform: scale(0.96);
+            background: #e2e8f0;
+        }
+        
+        /* شاشة المحادثة */
+        .chat-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: white;
+            z-index: 200;
+            display: flex;
+            flex-direction: column;
+            padding: 16px;
+        }
+        
+        .chat-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #f0f0f0;
+            flex-shrink: 0;
+        }
+        
+        .back-btn {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #667eea;
+        }
+        
+        .messages-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .message-bubble {
+            max-width: 80%;
+            padding: 10px 16px;
+            border-radius: 24px;
+            margin-bottom: 10px;
+            word-break: break-word;
+        }
+        
+        .my-message {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 4px;
+        }
+        
+        .other-message {
+            background: #f1f5f9;
+            color: #1e293b;
+            align-self: flex-start;
+            border-bottom-left-radius: 4px;
+        }
+        
+        .chat-input-area {
+            display: flex;
+            gap: 8px;
+            padding: 12px;
+            background: white;
+            border-top: 1px solid #f0f0f0;
+            flex-shrink: 0;
+        }
+        
+        .chat-input-area input {
+            flex: 2;
+            padding: 12px;
+            border-radius: 40px;
+            border: 1px solid #e2e8f0;
+            font-size: 0.9rem;
+        }
+        
+        .chat-input-area button {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border: none;
+            border-radius: 40px;
+            padding: 0 16px;
+            color: white;
+            cursor: pointer;
+        }
+        
+        .drawing-canvas {
+            background: white;
+            border: 2px solid #e2e8f0;
+            border-radius: 20px;
+            width: 100%;
+            touch-action: none;
+        }
+        
+        /* مودال الإعدادات */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 40px;
+            padding: 24px;
+            width: 90%;
+            max-width: 380px;
+            text-align: center;
+            max-height: 85vh;
+            overflow-y: auto;
+        }
+        
+        /* أزرار الصور الشخصية */
+        .avatar-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin: 20px 0;
+        }
+        
+        .avatar-option {
+            background: #f1f5f9;
+            border: 3px solid transparent;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin: 0 auto;
+        }
+        
+        .avatar-option.selected {
+            border-color: #667eea;
+            background: #e0e7ff;
+            transform: scale(1.05);
+        }
+        
+        .avatar-option:active {
+            transform: scale(0.95);
+        }
+        
+        .settings-input {
+            width: 100%;
+            padding: 14px 16px;
+            border: 1px solid #e2e8f0;
+            border-radius: 40px;
+            font-size: 1rem;
+            margin-top: 16px;
+            text-align: center;
+            background: #f8fafc;
+        }
+        
+        .save-btn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 40px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 20px;
+            width: 100%;
+        }
+        
+        .save-btn:active {
+            transform: scale(0.98);
+        }
+        
+        .info-text {
+            font-size: 0.75rem;
+            color: #94a3b8;
+            margin-top: 16px;
+            word-break: break-all;
+        }
+        
         .hidden { display: none; }
-        /* أنماط الرسم */
-        .drawing-canvas { background: #fff; border: 2px solid #1e6f5c; border-radius: 24px; cursor: crosshair; margin-top: 8px; touch-action: none; }
-        .drawing-tools { display: flex; gap: 10px; margin: 8px 0; align-items: center; }
-        .drawing-tools button { background: #eef2f5; border: none; border-radius: 30px; padding: 6px 12px; font-size: 0.8rem; }
-        .haptic-btn { background: #ffb6c1; border: none; border-radius: 40px; padding: 12px; font-size: 1.2rem; margin: 5px 0; }
-        /* شاشة تسجيل الدخول */
-        #authScreen { padding: 2rem; text-align: center; background: white; border-radius: 32px; margin: 2rem 1rem; }
-        #authScreen input { display: block; margin: 10px auto; width: 90%; padding: 12px; border-radius: 28px; border: 1px solid #ccc; }
-        #authScreen button { background: #1e6f5c; color: white; border: none; padding: 10px 20px; border-radius: 60px; margin: 8px; cursor: pointer; }
-        #authScreen .toggle-link { background: none; color: #1e6f5c; text-decoration: underline; }
-        .message-bubble { max-width: 85%; padding: 10px 15px; border-radius: 24px; margin-bottom: 12px; word-break: break-word; }
-        .my-message { background: #dcf8e7; align-self: flex-end; border-bottom-right-radius: 4px; }
-        .other-message { background: #f0f2f5; align-self: flex-start; border-bottom-left-radius: 4px; }
-        .drawing-bubble { background: #e9ecef; padding: 8px; border-radius: 24px; max-width: 250px; }
-        .drawing-bubble canvas { border-radius: 16px; background: white; width: 200px; height: 150px; }
-        .haptic-bubble { background: #ffe0e6; padding: 8px 16px; border-radius: 40px; font-size: 0.9rem; }
-        .chat-header { display: flex; align-items: center; gap: 16px; padding-bottom: 12px; border-bottom: 1px solid #ddd; }
-        .back-btn { background: none; border: none; font-size: 1.5rem; cursor: pointer; }
-        .messages-area { flex: 1; overflow-y: auto; padding: 16px 8px; display: flex; flex-direction: column; }
-        .chat-input-area { display: flex; gap: 8px; padding: 12px; background: white; border-top: 1px solid #eee; align-items: center; flex-wrap: wrap; }
-        .chat-input-area input { flex: 2; padding: 12px; border-radius: 40px; border: 1px solid #ccc; }
-        .chat-input-area button { background: #1e6f5c; border: none; border-radius: 40px; padding: 0 16px; color: white; height: 44px; }
+        
+        .chats-area::-webkit-scrollbar {
+            height: 4px;
+        }
+        
+        .chats-area::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+        
+        .chats-area::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        
+        .messages-area::-webkit-scrollbar {
+            width: 4px;
+        }
+        
+        .messages-area::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        
+        .messages-area::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
     </style>
 </head>
 <body>
-<!-- شاشة تسجيل الدخول -->
-<div id="authScreen">
-    <h2>تسجيل الدخول أو إنشاء حساب</h2>
-    <input type="email" id="emailInput" placeholder="البريد الإلكتروني">
-    <input type="text" id="nameInput" placeholder="الاسم (للتسجيل فقط)" style="display: none;">
-    <input type="password" id="passwordInput" placeholder="كلمة المرور">
-    <div>
-        <button id="submitBtn">دخول</button>
-        <button id="toggleBtn" class="toggle-link">إنشاء حساب</button>
-        <button id="resetPwdBtn" class="toggle-link">نسيت كلمة المرور؟</button>
+<div class="app-container">
+    <div id="loadingScreen" class="loading-screen">
+        <i class="fas fa-comments"></i>
+        <div class="loader"></div>
+        <p id="loadingStatus">جاري إنشاء هويتك الفريدة...</p>
     </div>
-    <div id="authMessage"></div>
-</div>
 
-<!-- الصفحة الرئيسية الأفقية -->
-<div id="mainApp" class="hidden app-container">
-    <div class="app-header">
-        <h1><i class="fas fa-comment-dots"></i> رسائلي</h1>
-        <div class="user-greeting" id="greetingName"></div>
-    </div>
-    <div class="horizontal-chats" id="horizontalChatsContainer">
-        <div class="chats-wrapper" id="chatsWrapper"></div>
-    </div>
-    <div class="bottom-icons">
-        <button class="icon-btn" id="shareQrBtn"><i class="fas fa-qrcode"></i><span>رمزي</span></button>
-        <button class="icon-btn" id="scanQrBtn"><i class="fas fa-camera"></i><span>مسح</span></button>
-        <button class="icon-btn" id="logoutBtn"><i class="fas fa-sign-out-alt"></i><span>خروج</span></button>
+    <div id="mainApp" class="hidden" style="flex:1; display: flex; flex-direction: column; height: 100%;">
+        <div class="app-header">
+            <div class="user-card" id="userCard">
+                <div class="user-avatar" id="userAvatar">🌟</div>
+                <div>
+                    <div id="userName"></div>
+                    <div style="font-size: 0.65rem; color: #94a3b8;">اضغط لتعديل الملف الشخصي</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="🔍 ابحث باسم صديق...">
+            <button id="searchBtn">بحث</button>
+        </div>
+        <div id="searchResults" class="search-results"></div>
+
+        <div class="chats-area">
+            <div class="chats-wrapper" id="chatsWrapper"></div>
+        </div>
+
+        <div class="bottom-nav">
+            <button class="nav-btn" id="shareQrBtn"><i class="fas fa-qrcode"></i><span>رمزي</span></button>
+            <button class="nav-btn" id="scanQrBtn"><i class="fas fa-camera"></i><span>مسح</span></button>
+            <button class="nav-btn" id="settingsBtn"><i class="fas fa-user-circle"></i><span>هويتي</span></button>
+        </div>
     </div>
 </div>
 
 <script>
-    // Firebase Config (خاصتك)
     const firebaseConfig = {
         apiKey: "AIzaSyBX8v0qIVjG-Z46fVDeEUDKcPxa_FQF9Qc",
         authDomain: "bnak-belaiba.firebaseapp.com",
@@ -98,345 +513,484 @@
         appId: "1:286736432059:web:ec1ed4292850f00008229e"
     };
     firebase.initializeApp(firebaseConfig);
-    const auth = firebase.auth();
     const db = firebase.firestore();
 
-    // عناصر شاشة تسجيل الدخول (نفس الكود القديم)
-    const authScreen = document.getElementById('authScreen');
-    const mainApp = document.getElementById('mainApp');
-    const emailInput = document.getElementById('emailInput');
-    const nameInput = document.getElementById('nameInput');
-    const passwordInput = document.getElementById('passwordInput');
-    const submitBtn = document.getElementById('submitBtn');
-    const toggleBtn = document.getElementById('toggleBtn');
-    const resetPwdBtn = document.getElementById('resetPwdBtn');
-    const authMessage = document.getElementById('authMessage');
-    let isLoginMode = true;
-
-    toggleBtn.addEventListener('click', () => {
-        isLoginMode = !isLoginMode;
-        if (isLoginMode) {
-            nameInput.style.display = 'none';
-            submitBtn.innerText = 'دخول';
-            toggleBtn.innerText = 'إنشاء حساب';
-        } else {
-            nameInput.style.display = 'block';
-            submitBtn.innerText = 'تسجيل';
-            toggleBtn.innerText = 'لديك حساب؟ سجل دخول';
-        }
-        authMessage.innerHTML = '';
-    });
-
-    resetPwdBtn.addEventListener('click', async () => {
-        const email = emailInput.value.trim();
-        if (!email) { authMessage.innerText = 'أدخل بريدك الإلكتروني'; return; }
-        try {
-            await auth.sendPasswordResetEmail(email);
-            authMessage.innerHTML = '<span style="color:green;">تم إرسال رابط الاستعادة إلى بريدك</span>';
-        } catch(e) { authMessage.innerText = e.message; }
-    });
-
-    submitBtn.addEventListener('click', async () => {
-        const email = emailInput.value.trim();
-        const password = passwordInput.value.trim();
-        if (!email || !password) { authMessage.innerText = 'البريد وكلمة المرور مطلوبة'; return; }
-        try {
-            if (isLoginMode) {
-                const cred = await auth.signInWithEmailAndPassword(email, password);
-                await loadUserData(cred.user);
-            } else {
-                const name = nameInput.value.trim();
-                if (!name) { authMessage.innerText = 'الاسم مطلوب للتسجيل'; return; }
-                const cred = await auth.createUserWithEmailAndPassword(email, password);
-                await db.collection('users').doc(cred.user.uid).set({
-                    id: cred.user.uid,
-                    email: email,
-                    name: name,
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                });
-                await loadUserData(cred.user);
-            }
-        } catch(e) { authMessage.innerText = e.message; }
-    });
-
     let currentUserId = null;
+    let currentUserData = null;
     let currentChatUnsub = null;
 
-    async function loadUserData(user) {
-        if (!user) return;
-        currentUserId = user.uid;
-        const doc = await db.collection('users').doc(user.uid).get();
-        const userName = doc.exists ? doc.data().name : user.email.split('@')[0];
-        document.getElementById('greetingName').innerText = `مرحباً ${userName}`;
-        authScreen.classList.add('hidden');
-        mainApp.classList.remove('hidden');
-        loadHorizontalChats();
+    // قائمة الصور الشخصية المتاحة
+    const AVAILABLE_AVATARS = [
+        '🐱', '🦊', '🐼', '🐨', '🦁', '🐧', '🐙', '🌸', 
+        '⭐', '🔥', '🌈', '🎨', '❤️', '💙', '💚', '💛',
+        '😀', '😎', '🥰', '🤩', '🐶', '🐭', '🐹', '🐰'
+    ];
+
+    // هوية فريدة لا يمكن استردادها أبداً
+    function getUniqueId() {
+        let id = localStorage.getItem('unique_user_id');
+        if (!id) {
+            id = 'usr_' + crypto.randomUUID().replace(/-/g, '').substring(0, 24);
+            localStorage.setItem('unique_user_id', id);
+        }
+        return id;
     }
 
-    async function loadHorizontalChats() {
-        if (!currentUserId) return;
-        const contactsSnap = await db.collection('contacts').where('userId', '==', currentUserId).get();
-        const contacts = [];
-        for (const docSnap of contactsSnap.docs) {
-            const contactId = docSnap.data().contactId;
-            const userDoc = await db.collection('users').doc(contactId).get();
-            if (userDoc.exists) {
-                contacts.push({ id: contactId, name: userDoc.data().name || 'مستخدم' });
+    const UNIQUE_ID = getUniqueId();
+
+    async function initUser() {
+        const statusDiv = document.getElementById('loadingStatus');
+        
+        try {
+            statusDiv.innerText = 'جاري إنشاء هويتك الفريدة...';
+            
+            const usersRef = db.collection('users');
+            const existingUserQuery = await usersRef.where('uniqueId', '==', UNIQUE_ID).get();
+            
+            if (!existingUserQuery.empty) {
+                const userDoc = existingUserQuery.docs[0];
+                currentUserId = userDoc.id;
+                currentUserData = userDoc.data();
+                statusDiv.innerText = 'تم استعادة حسابك ✓';
+            } else {
+                statusDiv.innerText = 'إنشاء حساب جديد...';
+                const randomAvatar = AVAILABLE_AVATARS[Math.floor(Math.random() * AVAILABLE_AVATARS.length)];
+                const displayName = `مسافر ${UNIQUE_ID.slice(-6)}`;
+                
+                const newUserRef = await db.collection('users').add({
+                    uniqueId: UNIQUE_ID,
+                    name: displayName,
+                    avatar: randomAvatar,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                currentUserId = newUserRef.id;
+                currentUserData = {
+                    uniqueId: UNIQUE_ID,
+                    name: displayName,
+                    avatar: randomAvatar
+                };
+                statusDiv.innerText = 'تم إنشاء حسابك ✓';
             }
-        }
-        const wrapper = document.getElementById('chatsWrapper');
-        if (contacts.length === 0) {
-            wrapper.innerHTML = `<div class="empty-chats">📭 لا توجد محادثات بعد<br>استخدم زر "مسح" لإضافة أصدقاء</div>`;
-            return;
-        }
-        wrapper.innerHTML = '';
-        for (const contact of contacts) {
-            const chatId = [currentUserId, contact.id].sort().join('_');
-            const lastMsgQuery = await db.collection('messages').doc(chatId).collection('msgs').orderBy('time', 'desc').limit(1).get();
-            let lastText = 'لا توجد رسائل بعد';
-            if (!lastMsgQuery.empty) {
-                const msgData = lastMsgQuery.docs[0].data();
-                if (msgData.type === 'haptic') lastText = '🤏 أرسل لك مشاعر';
-                else if (msgData.type === 'drawing') lastText = '🎨 رسم';
-                else lastText = msgData.text?.substring(0, 40) || 'رسالة';
-            }
-            const card = document.createElement('div');
-            card.className = 'chat-card';
-            card.innerHTML = `<div class="avatar"><i class="fas fa-user-circle"></i></div><div class="contact-name">${escapeHtml(contact.name)}</div><div class="last-message">${escapeHtml(lastText)}</div>`;
-            card.addEventListener('click', () => openChat(contact.id, contact.name));
-            wrapper.appendChild(card);
+            
+            updateUserDisplay();
+            
+            statusDiv.innerText = 'جاري تحميل المحادثات...';
+            
+            await new Promise(r => setTimeout(r, 500));
+            
+            document.getElementById('loadingScreen').classList.add('hide');
+            setTimeout(() => {
+                document.getElementById('loadingScreen').style.display = 'none';
+                document.getElementById('mainApp').classList.remove('hidden');
+            }, 500);
+            
+            await loadChats();
+            setupSearch();
+            
+        } catch (error) {
+            console.error('خطأ:', error);
+            statusDiv.innerHTML = `<span style="color:#ffcccc;">❌ خطأ: ${error.message}<br>تأكد من اتصال الإنترنت وحاول تحديث الصفحة</span>`;
         }
     }
 
-    function escapeHtml(str) { return str.replace(/[&<>]/g, function(m){if(m==='&') return '&amp;'; if(m==='<') return '&lt;'; if(m==='>') return '&gt;'; return m;}); }
+    function updateUserDisplay() {
+        document.getElementById('userName').innerHTML = `<strong>${escapeHtml(currentUserData.name)}</strong>`;
+        document.getElementById('userAvatar').innerText = currentUserData.avatar || '🌟';
+    }
 
-    // ---------- ميزات المحادثة الجديدة: اللمس والرسم ----------
-    let chatScreenDiv = null;
-    let drawingMode = false;
-    let canvas = null, ctx = null;
-    let drawingActive = false;
-
-    function openChat(contactId, contactName) {
-        if (chatScreenDiv) chatScreenDiv.remove();
-        chatScreenDiv = document.createElement('div');
-        chatScreenDiv.className = 'chat-screen';
-        chatScreenDiv.innerHTML = `
-            <div class="chat-header">
-                <button class="back-btn"><i class="fas fa-arrow-right"></i></button>
-                <h3>${escapeHtml(contactName)}</h3>
-            </div>
-            <div class="messages-area" id="chatMessagesArea"></div>
-            <div class="chat-input-area">
-                <input type="text" id="messageTextInput" placeholder="اكتب رسالة...">
-                <button id="sendTextBtn"><i class="fas fa-paper-plane"></i></button>
-                <button id="hapticBtn" class="haptic-btn" style="background:#ffb6c1;"><i class="fas fa-hand-peace"></i></button>
-                <button id="drawingToggleBtn"><i class="fas fa-paintbrush"></i></button>
-            </div>
-            <div id="drawingPanel" style="display: none; padding: 8px; background: #f8f9fa; border-radius: 24px; margin-top: 8px;">
-                <canvas id="drawCanvas" width="280" height="200" class="drawing-canvas" style="width:100%; height:auto; touch-action:none;"></canvas>
-                <div class="drawing-tools">
-                    <button id="clearCanvasBtn">🗑️ مسح</button>
-                    <button id="sendDrawingBtn">📤 إرسال الرسم</button>
-                    <button id="closeDrawingBtn">❌ إغلاق</button>
+    // فتح نافذة الإعدادات
+    function openSettingsModal() {
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        
+        let selectedAvatar = currentUserData.avatar;
+        
+        let avatarsHtml = '';
+        AVAILABLE_AVATARS.forEach(avatar => {
+            const isSelected = avatar === selectedAvatar;
+            avatarsHtml += `
+                <div class="avatar-option ${isSelected ? 'selected' : ''}" data-avatar="${avatar}">
+                    ${avatar}
+                </div>
+            `;
+        });
+        
+        modal.innerHTML = `
+            <div class="modal-content">
+                <h2 style="margin-bottom: 8px;">🆔 ملفي الشخصي</h2>
+                
+                <h3 style="margin: 20px 0 10px;">🖼️ الصورة الشخصية</h3>
+                <div class="avatar-grid" id="avatarGrid">
+                    ${avatarsHtml}
+                </div>
+                
+                <h3 style="margin: 20px 0 10px;">✏️ الاسم</h3>
+                <input type="text" id="userNameInput" class="settings-input" value="${escapeHtml(currentUserData.name)}" placeholder="اسمك">
+                
+                <button id="saveSettingsBtn" class="save-btn">💾 حفظ التغييرات</button>
+                <button id="closeSettingsBtn" class="save-btn" style="background:#e2e8f0; color:#475569; margin-top: 10px;">إلغاء</button>
+                
+                <div class="info-text">
+                    ⚠️ المعرف الفريد لا يمكن تغييره أو استرداده إذا فقدت هذا الجهاز
+                </div>
+                <div class="info-text" style="background:#f1f5f9; padding:8px; border-radius:20px; margin-top:12px;">
+                    🆔 ${UNIQUE_ID}
                 </div>
             </div>
         `;
-        document.body.appendChild(chatScreenDiv);
+        
+        document.body.appendChild(modal);
+        
+        const avatarOptions = modal.querySelectorAll('.avatar-option');
+        avatarOptions.forEach(opt => {
+            opt.addEventListener('click', () => {
+                avatarOptions.forEach(o => o.classList.remove('selected'));
+                opt.classList.add('selected');
+                selectedAvatar = opt.getAttribute('data-avatar');
+            });
+        });
+        
+        const saveBtn = modal.querySelector('#saveSettingsBtn');
+        saveBtn.addEventListener('click', async () => {
+            const newName = modal.querySelector('#userNameInput').value.trim();
+            if (!newName) {
+                alert('الاسم لا يمكن أن يكون فارغاً');
+                return;
+            }
+            
+            const userRef = db.collection('users').doc(currentUserId);
+            await userRef.update({
+                name: newName,
+                avatar: selectedAvatar
+            });
+            
+            currentUserData.name = newName;
+            currentUserData.avatar = selectedAvatar;
+            updateUserDisplay();
+            await loadChats();
+            
+            alert('✅ تم تحديث الملف الشخصي بنجاح');
+            modal.remove();
+        });
+        
+        const closeBtn = modal.querySelector('#closeSettingsBtn');
+        closeBtn.addEventListener('click', () => modal.remove());
+        
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) modal.remove();
+        });
+    }
 
-        const backBtn = chatScreenDiv.querySelector('.back-btn');
-        backBtn.addEventListener('click', () => { if(currentChatUnsub) currentChatUnsub(); chatScreenDiv.remove(); chatScreenDiv=null; loadHorizontalChats(); });
+    async function loadChats() {
+        if (!currentUserId) return;
+        
+        try {
+            const contactsSnap = await db.collection('contacts').where('userId', '==', currentUserId).get();
+            const contacts = [];
+            
+            for (const docSnap of contactsSnap.docs) {
+                const contactId = docSnap.data().contactId;
+                const userDoc = await db.collection('users').doc(contactId).get();
+                if (userDoc.exists) {
+                    contacts.push({
+                        id: contactId,
+                        name: userDoc.data().name,
+                        avatar: userDoc.data().avatar || '👤'
+                    });
+                }
+            }
+            
+            const wrapper = document.getElementById('chatsWrapper');
+            if (contacts.length === 0) {
+                wrapper.innerHTML = `<div style="padding:40px; text-align:center; color:#94a3b8; width:100%;">✨ لا توجد محادثات بعد<br>ابحث عن أصدقاء جدد أو امسح رمز صديق</div>`;
+                return;
+            }
+            
+            wrapper.innerHTML = '';
+            for (const contact of contacts) {
+                const chatId = [currentUserId, contact.id].sort().join('_');
+                const lastMsgQuery = await db.collection('messages').doc(chatId).collection('msgs').orderBy('time', 'desc').limit(1).get();
+                let lastText = '💬 ابدأ المحادثة';
+                if (!lastMsgQuery.empty) {
+                    const msg = lastMsgQuery.docs[0].data();
+                    if (msg.type === 'haptic') lastText = '🤏 مشاعر لمسية';
+                    else if (msg.type === 'drawing') lastText = '🎨 رسم';
+                    else lastText = msg.text?.substring(0, 35) || 'رسالة';
+                }
+                
+                const card = document.createElement('div');
+                card.className = 'chat-card';
+                card.innerHTML = `
+                    <div class="chat-avatar">${contact.avatar}</div>
+                    <div class="chat-name">${escapeHtml(contact.name)}</div>
+                    <div class="chat-last">${escapeHtml(lastText)}</div>
+                `;
+                card.onclick = () => openChat(contact.id, contact.name, contact.avatar);
+                wrapper.appendChild(card);
+            }
+        } catch (error) {
+            console.error('خطأ في تحميل المحادثات:', error);
+        }
+    }
 
-        const messagesDiv = chatScreenDiv.querySelector('#chatMessagesArea');
+    async function searchUsers(query) {
+        if (!query.trim() || !currentUserId) return [];
+        const q = query.trim().toLowerCase();
+        const usersSnap = await db.collection('users').get();
+        const contactsSnap = await db.collection('contacts').where('userId', '==', currentUserId).get();
+        const existingIds = new Set();
+        contactsSnap.forEach(d => existingIds.add(d.data().contactId));
+        
+        const results = [];
+        usersSnap.forEach(doc => {
+            const data = doc.data();
+            if (doc.id === currentUserId) return;
+            if (existingIds.has(doc.id)) return;
+            if (data.name?.toLowerCase().includes(q)) {
+                results.push({ id: doc.id, name: data.name, avatar: data.avatar || '👤' });
+            }
+        });
+        return results.slice(0, 15);
+    }
+
+    async function addContact(contactId, contactName) {
+        const existing = await db.collection('contacts').where('userId', '==', currentUserId).where('contactId', '==', contactId).get();
+        if (!existing.empty) {
+            alert('هذا الصديق موجود بالفعل');
+            return;
+        }
+        await db.collection('contacts').add({
+            userId: currentUserId,
+            contactId: contactId,
+            createdAt: new Date()
+        });
+        alert(`✅ تمت إضافة ${contactName} بنجاح`);
+        document.getElementById('searchResults').style.display = 'none';
+        loadChats();
+    }
+
+    function setupSearch() {
+        const searchBtn = document.getElementById('searchBtn');
+        const searchInput = document.getElementById('searchInput');
+        const resultsDiv = document.getElementById('searchResults');
+        
+        const performSearch = async () => {
+            const query = searchInput.value;
+            if (!query.trim()) {
+                resultsDiv.style.display = 'none';
+                return;
+            }
+            const users = await searchUsers(query);
+            if (users.length === 0) {
+                resultsDiv.innerHTML = '<div class="result-item">🔍 لا يوجد مستخدمون بهذا الاسم</div>';
+                resultsDiv.style.display = 'block';
+                return;
+            }
+            resultsDiv.innerHTML = '';
+            users.forEach(u => {
+                const div = document.createElement('div');
+                div.className = 'result-item';
+                div.innerHTML = `
+                    <div><span style="font-size:1.3rem;">${u.avatar}</span> <strong>${escapeHtml(u.name)}</strong></div>
+                    <button class="add-btn" data-id="${u.id}" data-name="${escapeHtml(u.name)}">➕ إضافة</button>
+                `;
+                resultsDiv.appendChild(div);
+            });
+            resultsDiv.style.display = 'block';
+            
+            document.querySelectorAll('.add-btn').forEach(btn => {
+                btn.onclick = (e) => {
+                    e.stopPropagation();
+                    addContact(btn.dataset.id, btn.dataset.name);
+                };
+            });
+        };
+        
+        searchBtn.onclick = performSearch;
+        searchInput.onkeypress = (e) => { if (e.key === 'Enter') performSearch(); };
+        document.addEventListener('click', (e) => {
+            if (!resultsDiv.contains(e.target) && e.target !== searchInput && e.target !== searchBtn) {
+                resultsDiv.style.display = 'none';
+            }
+        });
+    }
+
+    let chatScreen = null;
+    
+    function openChat(contactId, contactName, contactAvatar) {
+        if (chatScreen) chatScreen.remove();
+        chatScreen = document.createElement('div');
+        chatScreen.className = 'chat-screen';
+        chatScreen.innerHTML = `
+            <div class="chat-header">
+                <button class="back-btn"><i class="fas fa-arrow-right"></i></button>
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <span style="font-size:1.8rem;">${contactAvatar}</span>
+                    <h3>${escapeHtml(contactName)}</h3>
+                </div>
+            </div>
+            <div class="messages-area" id="chatMessages"></div>
+            <div class="chat-input-area">
+                <input type="text" id="msgInput" placeholder="اكتب رسالة...">
+                <button id="sendMsgBtn"><i class="fas fa-paper-plane"></i></button>
+                <button id="hapticBtn" style="background:#f43f5e;"><i class="fas fa-hand-peace"></i></button>
+                <button id="drawBtn"><i class="fas fa-paintbrush"></i></button>
+            </div>
+            <div id="drawPanel" style="display:none; padding:12px; background:#f8fafc; border-radius:24px; margin-top:8px;">
+                <canvas id="drawCanvas" width="300" height="200" class="drawing-canvas" style="touch-action:none;"></canvas>
+                <div style="display:flex; gap:8px; margin-top:10px;">
+                    <button id="clearDraw" style="flex:1; padding:8px; border-radius:30px; border:none;">🗑️ مسح</button>
+                    <button id="sendDraw" style="flex:1; padding:8px; border-radius:30px; border:none; background:#667eea; color:white;">📤 إرسال</button>
+                    <button id="closeDraw" style="flex:1; padding:8px; border-radius:30px; border:none;">❌ إغلاق</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(chatScreen);
+        
         const chatId = [currentUserId, contactId].sort().join('_');
-
+        const messagesDiv = chatScreen.querySelector('#chatMessages');
+        
         if (currentChatUnsub) currentChatUnsub();
         currentChatUnsub = db.collection('messages').doc(chatId).collection('msgs').orderBy('time').onSnapshot(snap => {
             messagesDiv.innerHTML = '';
             snap.forEach(doc => {
                 const msg = doc.data();
                 const isMine = msg.from === currentUserId;
+                const bubble = document.createElement('div');
+                bubble.className = `message-bubble ${isMine ? 'my-message' : 'other-message'}`;
+                
                 if (msg.type === 'haptic') {
-                    const div = document.createElement('div');
-                    div.className = `message-bubble ${isMine ? 'my-message' : 'other-message'} haptic-bubble`;
-                    div.innerHTML = '<i class="fas fa-hand-peace"></i> ' + (msg.text || 'أرسل لك مشاعر لمسية');
-                    messagesDiv.appendChild(div);
-                    if (!isMine && 'vibrate' in navigator) {
-                        navigator.vibrate([200, 100, 200]);
-                    }
-                } 
-                else if (msg.type === 'drawing') {
-                    const div = document.createElement('div');
-                    div.className = `message-bubble ${isMine ? 'my-message' : 'other-message'} drawing-bubble`;
+                    bubble.innerHTML = '<i class="fas fa-hand-peace"></i> 🤍 لمسة دافئة';
+                    if (!isMine && 'vibrate' in navigator) navigator.vibrate([200, 100, 200]);
+                } else if (msg.type === 'drawing') {
                     const imgCanvas = document.createElement('canvas');
-                    imgCanvas.width = msg.drawingWidth || 200;
-                    imgCanvas.height = msg.drawingHeight || 150;
-                    const imgCtx = imgCanvas.getContext('2d');
+                    imgCanvas.width = 180; imgCanvas.height = 120;
+                    const ctx = imgCanvas.getContext('2d');
                     const img = new Image();
-                    img.onload = () => { imgCtx.drawImage(img, 0, 0, imgCanvas.width, imgCanvas.height); };
+                    img.onload = () => ctx.drawImage(img, 0, 0, 180, 120);
                     img.src = msg.imageData;
-                    div.appendChild(imgCanvas);
-                    messagesDiv.appendChild(div);
+                    bubble.appendChild(imgCanvas);
+                } else {
+                    bubble.innerText = msg.text;
                 }
-                else {
-                    const div = document.createElement('div');
-                    div.className = `message-bubble ${isMine ? 'my-message' : 'other-message'}`;
-                    div.innerText = msg.text;
-                    messagesDiv.appendChild(div);
-                }
+                messagesDiv.appendChild(bubble);
             });
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
         });
-
-        // إرسال نص
-        const sendTextBtn = chatScreenDiv.querySelector('#sendTextBtn');
-        const textInput = chatScreenDiv.querySelector('#messageTextInput');
-        sendTextBtn.addEventListener('click', async () => {
-            const txt = textInput.value.trim();
-            if(!txt) return;
+        
+        chatScreen.querySelector('.back-btn').onclick = () => {
+            if (currentChatUnsub) currentChatUnsub();
+            chatScreen.remove();
+            chatScreen = null;
+            loadChats();
+        };
+        
+        const msgInput = chatScreen.querySelector('#msgInput');
+        chatScreen.querySelector('#sendMsgBtn').onclick = async () => {
+            const txt = msgInput.value.trim();
+            if (!txt) return;
             await db.collection('messages').doc(chatId).collection('msgs').add({
                 from: currentUserId, to: contactId, text: txt, type: 'text', time: firebase.firestore.FieldValue.serverTimestamp()
             });
-            textInput.value = '';
-        });
-        textInput.addEventListener('keypress', (e) => { if(e.key === 'Enter') sendTextBtn.click(); });
-
-        // ميزة 1: النقر الطويل لإرسال مشاعر (Haptic)
-        const hapticBtn = chatScreenDiv.querySelector('#hapticBtn');
+            msgInput.value = '';
+        };
+        msgInput.onkeypress = (e) => { if (e.key === 'Enter') chatScreen.querySelector('#sendMsgBtn').click(); };
+        
         let pressTimer;
-        hapticBtn.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            pressTimer = setTimeout(async () => {
-                await db.collection('messages').doc(chatId).collection('msgs').add({
-                    from: currentUserId, to: contactId, type: 'haptic', text: '❤️ لمسة حب', time: firebase.firestore.FieldValue.serverTimestamp()
-                });
-                if ('vibrate' in navigator) navigator.vibrate([100, 50, 100]);
-                alert('تم إرسال مشاعر لمسية!');
-            }, 800);
-        });
+        const hapticBtn = chatScreen.querySelector('#hapticBtn');
+        const sendHaptic = async () => {
+            await db.collection('messages').doc(chatId).collection('msgs').add({
+                from: currentUserId, to: contactId, type: 'haptic', time: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            if ('vibrate' in navigator) navigator.vibrate([100, 50, 100]);
+        };
+        hapticBtn.addEventListener('touchstart', (e) => { e.preventDefault(); pressTimer = setTimeout(sendHaptic, 600); });
         hapticBtn.addEventListener('touchend', () => clearTimeout(pressTimer));
-        hapticBtn.addEventListener('touchcancel', () => clearTimeout(pressTimer));
-        // للفأرة على الكمبيوتر
-        hapticBtn.addEventListener('mousedown', () => { pressTimer = setTimeout(async () => { /* نفس الشيء */ }, 800); });
+        hapticBtn.addEventListener('mousedown', () => { pressTimer = setTimeout(sendHaptic, 600); });
         hapticBtn.addEventListener('mouseup', () => clearTimeout(pressTimer));
-
-        // ميزة 2: الرسم بالإصبع
-        const drawingPanel = chatScreenDiv.querySelector('#drawingPanel');
-        const toggleDrawBtn = chatScreenDiv.querySelector('#drawingToggleBtn');
-        toggleDrawBtn.addEventListener('click', () => {
-            drawingPanel.style.display = drawingPanel.style.display === 'none' ? 'block' : 'none';
-            if (drawingPanel.style.display === 'block') initCanvas(chatScreenDiv);
-        });
-        const closeDrawBtn = chatScreenDiv.querySelector('#closeDrawingBtn');
-        closeDrawBtn.addEventListener('click', () => drawingPanel.style.display = 'none');
-        const clearCanvasBtn = chatScreenDiv.querySelector('#clearCanvasBtn');
-        const sendDrawingBtn = chatScreenDiv.querySelector('#sendDrawingBtn');
-
-        function initCanvas(container) {
-            canvas = container.querySelector('#drawCanvas');
-            if (!canvas) return;
-            ctx = canvas.getContext('2d');
+        
+        const drawPanel = chatScreen.querySelector('#drawPanel');
+        chatScreen.querySelector('#drawBtn').onclick = () => {
+            drawPanel.style.display = drawPanel.style.display === 'none' ? 'block' : 'none';
+            if (drawPanel.style.display === 'block') initDraw(chatId, contactId);
+        };
+        chatScreen.querySelector('#closeDraw').onclick = () => drawPanel.style.display = 'none';
+        
+        function initDraw(chatIdFixed, contactIdFixed) {
+            const canvas = chatScreen.querySelector('#drawCanvas');
+            const ctx = canvas.getContext('2d');
             canvas.width = canvas.clientWidth;
-            canvas.height = canvas.clientHeight;
-            ctx.fillStyle = '#fff';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.strokeStyle = '#1e6f5c';
-            ctx.lineWidth = 4;
-            ctx.lineCap = 'round';
+            canvas.height = 200;
+            ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.strokeStyle = '#667eea'; ctx.lineWidth = 3; ctx.lineCap = 'round';
             let painting = false;
-            const getCoords = (e) => {
+            const getPos = (e) => {
                 const rect = canvas.getBoundingClientRect();
-                const scaleX = canvas.width / rect.width;
-                const scaleY = canvas.height / rect.height;
-                let clientX, clientY;
-                if (e.touches) {
-                    clientX = e.touches[0].clientX;
-                    clientY = e.touches[0].clientY;
-                } else {
-                    clientX = e.clientX;
-                    clientY = e.clientY;
-                }
-                let x = (clientX - rect.left) * scaleX;
-                let y = (clientY - rect.top) * scaleY;
+                const sx = canvas.width / rect.width;
+                const sy = canvas.height / rect.height;
+                let cx, cy;
+                if (e.touches) { cx = e.touches[0].clientX; cy = e.touches[0].clientY; }
+                else { cx = e.clientX; cy = e.clientY; }
+                let x = (cx - rect.left) * sx;
+                let y = (cy - rect.top) * sy;
                 x = Math.min(Math.max(0, x), canvas.width);
                 y = Math.min(Math.max(0, y), canvas.height);
                 return { x, y };
             };
-            const startDraw = (e) => {
-                e.preventDefault();
-                painting = true;
-                const { x, y } = getCoords(e);
-                ctx.beginPath();
-                ctx.moveTo(x, y);
-                ctx.lineTo(x, y);
-                ctx.stroke();
-            };
-            const draw = (e) => {
-                if (!painting) return;
-                e.preventDefault();
-                const { x, y } = getCoords(e);
-                ctx.lineTo(x, y);
-                ctx.stroke();
-                ctx.beginPath();
-                ctx.moveTo(x, y);
-            };
-            const endDraw = () => { painting = false; ctx.beginPath(); };
-            canvas.addEventListener('touchstart', startDraw);
-            canvas.addEventListener('touchmove', draw);
-            canvas.addEventListener('touchend', endDraw);
-            canvas.addEventListener('mousedown', startDraw);
-            canvas.addEventListener('mousemove', draw);
-            canvas.addEventListener('mouseup', endDraw);
-            clearCanvasBtn.addEventListener('click', () => {
-                ctx.fillStyle = '#fff';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-            });
-            sendDrawingBtn.addEventListener('click', async () => {
+            const start = (e) => { e.preventDefault(); painting = true; const {x,y} = getPos(e); ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x,y); ctx.stroke(); };
+            const draw = (e) => { if (!painting) return; e.preventDefault(); const {x,y} = getPos(e); ctx.lineTo(x,y); ctx.stroke(); ctx.beginPath(); ctx.moveTo(x,y); };
+            const end = () => { painting = false; ctx.beginPath(); };
+            canvas.addEventListener('touchstart', start); canvas.addEventListener('touchmove', draw); canvas.addEventListener('touchend', end);
+            canvas.addEventListener('mousedown', start); canvas.addEventListener('mousemove', draw); canvas.addEventListener('mouseup', end);
+            chatScreen.querySelector('#clearDraw').onclick = () => { ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height); };
+            chatScreen.querySelector('#sendDraw').onclick = async () => {
                 const imageData = canvas.toDataURL();
-                await db.collection('messages').doc(chatId).collection('msgs').add({
-                    from: currentUserId, to: contactId, type: 'drawing', imageData: imageData, drawingWidth: canvas.width, drawingHeight: canvas.height, time: firebase.firestore.FieldValue.serverTimestamp()
+                await db.collection('messages').doc(chatIdFixed).collection('msgs').add({
+                    from: currentUserId, to: contactIdFixed, type: 'drawing', imageData, drawingWidth: canvas.width, drawingHeight: canvas.height, time: firebase.firestore.FieldValue.serverTimestamp()
                 });
-                drawingPanel.style.display = 'none';
-                alert('تم إرسال الرسم');
-            });
+                drawPanel.style.display = 'none';
+                alert('🎨 تم إرسال الرسم');
+            };
         }
-        if (drawingPanel.style.display === 'block') initCanvas(chatScreenDiv);
     }
-
-    // QR and other functions
+    
+    function escapeHtml(str) { return String(str || '').replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'})[m]); }
+    
     document.getElementById('shareQrBtn')?.addEventListener('click', () => {
-        if(!currentUserId) return;
-        const modal = document.createElement('div');
-        modal.className = 'modal';
-        modal.innerHTML = `<div class="modal-content"><h3>رمزك الشخصي</h3><div id="tempQr" style="display: flex; justify-content: center; margin: 20px;"></div><p>امسح هذا الرمز لإضافتك</p><button class="close-modal">إغلاق</button></div>`;
+        const modal = document.createElement('div'); modal.className = 'modal';
+        modal.innerHTML = `<div class="modal-content"><h3>🆔 رمز هويتي</h3><div id="qrDiv" style="margin:20px;"></div><p style="font-size:12px;color:#666;">امسح هذا الرمز لإضافتي كصديق</p><button class="close-modal" style="margin-top:16px; padding:8px 24px; border-radius:40px; border:none; background:#667eea; color:white;">إغلاق</button></div>`;
         document.body.appendChild(modal);
-        new QRCode(modal.querySelector('#tempQr'), { text: currentUserId, width: 180, height: 180 });
+        new QRCode(modal.querySelector('#qrDiv'), { text: currentUserId, width: 180, height: 180 });
         modal.querySelector('.close-modal').addEventListener('click', () => modal.remove());
     });
+    
     document.getElementById('scanQrBtn')?.addEventListener('click', () => {
-        const modal = document.createElement('div');
-        modal.className = 'modal';
-        modal.innerHTML = `<div class="modal-content"><div id="qr-reader" style="width:100%"></div><button class="close-modal">إلغاء</button></div>`;
+        const modal = document.createElement('div'); modal.className = 'modal';
+        modal.innerHTML = `<div class="modal-content"><div id="qr-reader" style="width:100%"></div><button class="close-modal" style="margin-top:16px;">إلغاء</button></div>`;
         document.body.appendChild(modal);
         const html5QrCode = new Html5Qrcode("qr-reader");
         html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, async (decodedText) => {
-            await html5QrCode.stop();
-            modal.remove();
-            if(decodedText === currentUserId) { alert("لا يمكن إضافة نفسك"); return; }
-            const userExists = await db.collection('users').doc(decodedText).get();
-            if(!userExists.exists) { alert("رمز غير صالح"); return; }
+            await html5QrCode.stop(); modal.remove();
+            if (decodedText === currentUserId) return alert("لا يمكن إضافة نفسك");
+            const userDoc = await db.collection('users').doc(decodedText).get();
+            if (!userDoc.exists) return alert("رمز غير صالح");
             const existing = await db.collection('contacts').where("userId","==",currentUserId).where("contactId","==",decodedText).get();
-            if(!existing.empty) { alert("جهة اتصال موجودة"); return; }
+            if (!existing.empty) return alert("جهة الاتصال موجودة بالفعل");
             await db.collection('contacts').add({ userId: currentUserId, contactId: decodedText, createdAt: new Date() });
-            alert("تمت الإضافة بنجاح");
-            loadHorizontalChats();
-        }).catch(err => { alert("خطأ بالكاميرا"); modal.remove(); });
+            alert("✅ تمت الإضافة بنجاح"); loadChats();
+        }).catch(() => { alert("خطأ في الكاميرا"); modal.remove(); });
         modal.querySelector('.close-modal').addEventListener('click', () => { html5QrCode.stop().catch(e=>{}); modal.remove(); });
     });
-    document.getElementById('logoutBtn')?.addEventListener('click', async () => { await auth.signOut(); window.location.reload(); });
-    auth.onAuthStateChanged(async (user) => {
-        if (user) await loadUserData(user);
-        else { authScreen.classList.remove('hidden'); mainApp.classList.add('hidden'); if(chatScreenDiv) chatScreenDiv.remove(); }
+    
+    document.getElementById('settingsBtn')?.addEventListener('click', () => {
+        openSettingsModal();
     });
+    
+    document.getElementById('userCard')?.addEventListener('click', () => {
+        openSettingsModal();
+    });
+    
+    initUser();
 </script>
 </body>
 </html>
